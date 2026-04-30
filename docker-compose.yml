@@ -1,0 +1,20 @@
+version: "3.9"
+
+services:
+  backend-laravel:
+    image: php:8.3-cli
+    working_dir: /app
+    volumes:
+      - ./backend-laravel:/app
+    ports:
+      - "8000:8000"
+    command: ["sh", "-c", "php -S 0.0.0.0:8000 -t public"]
+
+  pulse-engine:
+    image: python:3.12-slim
+    working_dir: /app
+    volumes:
+      - ./pulse-engine:/app
+    ports:
+      - "8001:8001"
+    command: ["python", "app/main.py"]
