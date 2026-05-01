@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from app.camara import click_to_dial, congestion, connectivity_insights, device, geofencing, identity, location, qod, qos, qos_booking_assignment, qos_provisioning, region
+from app.camara import click_to_dial, congestion, connectivity_insights, device, device_identifier, geofencing, identity, location, qod, qos, qos_booking_assignment, qos_provisioning, region
 from app.camara.config import (
     CAMARA_NUMBER_DEVICE_PHONE_SCOPE,
     CAMARA_NUMBER_VERIFICATION_SCOPE,
@@ -210,6 +210,20 @@ class RetrieveQodSessionsInput(BaseModel):
     """Payload for CAMARA /retrieve-sessions."""
 
     device: dict[str, object] | None = None
+
+
+class DeviceIdentifierRequestInput(BaseModel):
+    """Payload for Device Identifier retrieve operations."""
+
+    device: dict[str, object] | None = None
+
+
+class MatchDeviceIdentifierInput(BaseModel):
+    """Payload for Device Identifier match operation."""
+
+    device: dict[str, object] | None = None
+    providedIdentifierType: str
+    providedIdentifier: str
 
 
 app = FastAPI(title="Raphael Pulse", version="0.1.0")
@@ -670,6 +684,102 @@ def retrieve_qod_sessions(
             },
         )
     return result.get("items", [])
+
+
+@app.post("/retrieve-identifier")
+def retrieve_device_identifier(
+    input_data: DeviceIdentifierRequestInput,
+    x_subject_from_token: str | None = Header(default=None),
+) -> dict[str, object]:
+    """Retrieve IMEI/IMEISV and related device identifier metadata."""
+    payload = input_data.model_dump(exclude_none=True)
+    token_device_identified = str(x_subject_from_token).lower() in {"1", "true", "yes"}
+    result = device_identifier.retrieve_identifier(
+        payload,
+        token_device_identified=token_device_identified,
+    )
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 400)),
+            detail={
+                "code": err.get("code", "INVALID_ARGUMENT"),
+                "message": err.get("message", "Request could not be processed."),
+            },
+        )
+    return result.get("item", {})
+
+
+@app.post("/retrieve-type")
+def retrieve_device_type(
+    input_data: DeviceIdentifierRequestInput,
+    x_subject_from_token: str | None = Header(default=None),
+) -> dict[str, object]:
+    """Retrieve device type metadata (TAC, model, manufacturer)."""
+    payload = input_data.model_dump(exclude_none=True)
+    token_device_identified = str(x_subject_from_token).lower() in {"1", "true", "yes"}
+    result = device_identifier.retrieve_type(
+        payload,
+        token_device_identified=token_device_identified,
+    )
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 400)),
+            detail={
+                "code": err.get("code", "INVALID_ARGUMENT"),
+                "message": err.get("message", "Request could not be processed."),
+            },
+        )
+    return result.get("item", {})
+
+
+@app.post("/retrieve-ppid")
+def retrieve_device_ppid(
+    input_data: DeviceIdentifierRequestInput,
+    x_subject_from_token: str | None = Header(default=None),
+) -> dict[str, object]:
+    """Retrieve pairwise pseudonymous identifier for the current device."""
+    payload = input_data.model_dump(exclude_none=True)
+    token_device_identified = str(x_subject_from_token).lower() in {"1", "true", "yes"}
+    result = device_identifier.retrieve_ppid(
+        payload,
+        token_device_identified=token_device_identified,
+    )
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 400)),
+            detail={
+                "code": err.get("code", "INVALID_ARGUMENT"),
+                "message": err.get("message", "Request could not be processed."),
+            },
+        )
+    return result.get("item", {})
+
+
+@app.post("/match-identifier")
+def match_device_identifier(
+    input_data: MatchDeviceIdentifierInput,
+    x_subject_from_token: str | None = Header(default=None),
+) -> dict[str, object]:
+    """Match provided IMEI/IMEISV/TAC against network-associated device identifier."""
+    payload = input_data.model_dump(exclude_none=True)
+    token_device_identified = str(x_subject_from_token).lower() in {"1", "true", "yes"}
+    result = device_identifier.match_identifier(
+        payload,
+        token_device_identified=token_device_identified,
+    )
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 400)),
+            detail={
+                "code": err.get("code", "INVALID_ARGUMENT"),
+                "message": err.get("message", "Request could not be processed."),
+            },
+        )
+    return result.get("item", {})
 
 
 @app.post("/qos-bookings")
