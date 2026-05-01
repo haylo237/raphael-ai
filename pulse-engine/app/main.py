@@ -14,11 +14,7 @@ from app.camara.config import (
     get_nac_client,
 )
 from app.camara.http_client import exchange_auth_code_for_token
-from app.services.decision_engine import (
-    choose_communication_mode,
-    emergency_actions,
-    should_request_qod,
-)
+from app.services.decision_engine import choose_communication_mode, emergency_actions, nearest_hospital, should_request_qod
 
 load_dotenv()
 
@@ -1203,11 +1199,16 @@ def delete_device_reachability_subscription(subscription_id: str):
 def decide(case: CaseInput) -> dict[str, object]:
     """Build a decision plan using urgency, network, and CAMARA intelligence."""
     phone_ref = case.patient_id  # used as device identifier in CAMARA calls
+    urgency_level = str(case.urgency).strip().upper()
+    network_level = str(case.network_quality).strip().upper()
 
     # --- CAMARA: Device reachability ---
     reachability = device.get_reachability(phone_ref)
     roaming_status = device.get_roaming_status(phone_ref)
-    effective_reachable: bool = bool(reachability.get("reachable", case.device_reachable))
+    # Keep API reachability as primary signal but allow case input to force
+    # unreachable during simulations and demos.
+    api_reachable = bool(reachability.get("reachable", case.device_reachable))
+    effective_reachable: bool = api_reachable and bool(case.device_reachable)
 
     # --- CAMARA: Number ownership / SIM trust ---
     number_verification = identity.verify_number(phone_ref)
@@ -1217,21 +1218,47 @@ def decide(case: CaseInput) -> dict[str, object]:
     congestion_data = congestion.get_insights(case.location, case.network_quality, phone_number=phone_ref)
 
     communication_mode = choose_communication_mode(
-        urgency=case.urgency,
-        network_quality=case.network_quality,
+        urgency=urgency_level,
+        network_quality=network_level,
         reachable=effective_reachable,
     )
 
-    is_emergency = case.urgency == "emergency"
-    needs_qod = should_request_qod(case.urgency, case.network_quality)
+    is_emergency = urgency_level == "EMERGENCY"
+    needs_qod = should_request_qod(urgency_level, network_level)
+
+    decision_actions: list[str] = []
+    if is_emergency:
+        decision_priority = "HIGH"
+        decision_actions = emergency_actions(
+            {
+                **case.model_dump(),
+                "device_reachable": effective_reachable,
+            }
+        )
+    else:
+        decision_priority = "NORMAL"
+        if not effective_reachable:
+            decision_actions.append("Send fallback notification")
+        decision_actions.append(f"Use {communication_mode} communication")
 
     response: dict[str, object] = {
         "patient_id": case.patient_id,
         "is_emergency": is_emergency,
         "communication_mode": communication_mode,
+        "decision": {
+            "mode": communication_mode,
+            "priority": decision_priority,
+            "actions": decision_actions,
+        },
         "request_qod": needs_qod,
+        "input_summary": {
+            "urgency": urgency_level,
+            "network": network_level,
+            "reachable": effective_reachable,
+            "location": case.location,
+        },
         "network_context": {
-            "quality": case.network_quality,
+            "quality": network_level,
             "device_reachable": effective_reachable,
             "reachability_detail": reachability,
             "roaming": roaming_status,
@@ -1250,11 +1277,8 @@ def decide(case: CaseInput) -> dict[str, object]:
     # --- CAMARA: Location + emergency actions ---
     if is_emergency:
         location_data = location.get_location(phone_ref, hint=case.location)
-        payload_for_actions = {
-            **case.model_dump(),
-            "device_reachable": effective_reachable,
-        }
         response["patient_location"] = location_data
-        response["emergency_actions"] = emergency_actions(payload_for_actions)
+        response["assigned_hospital"] = nearest_hospital(case.location)
+        response["emergency_actions"] = decision_actions
 
     return response
