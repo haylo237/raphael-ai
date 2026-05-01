@@ -187,6 +187,31 @@ class RetrieveQosAssignmentByDeviceInput(BaseModel):
     device: dict[str, object] | None = None
 
 
+class CreateQodSessionInput(BaseModel):
+    """Payload for CAMARA Quality-On-Demand create session."""
+
+    device: dict[str, object] | None = None
+    applicationServer: dict[str, object]
+    devicePorts: dict[str, object] | None = None
+    applicationServerPorts: dict[str, object] | None = None
+    qosProfile: str
+    duration: int = Field(ge=1)
+    sink: str | None = None
+    sinkCredential: dict[str, object] | None = None
+
+
+class ExtendQodSessionInput(BaseModel):
+    """Payload for CAMARA /sessions/{sessionId}/extend."""
+
+    requestedAdditionalDuration: int = Field(ge=1)
+
+
+class RetrieveQodSessionsInput(BaseModel):
+    """Payload for CAMARA /retrieve-sessions."""
+
+    device: dict[str, object] | None = None
+
+
 app = FastAPI(title="Raphael Pulse", version="0.1.0")
 
 
@@ -526,6 +551,93 @@ def revoke_qos_assignment(assignment_id: str):
     if status_code == 202:
         return JSONResponse(status_code=202, content=result.get("item", {}))
     return Response(status_code=204)
+
+
+@app.post("/sessions")
+def create_qod_session(input_data: CreateQodSessionInput):
+    """Create a QoD session for prioritized traffic handling."""
+    from fastapi.responses import JSONResponse  # noqa: PLC0415
+
+    payload = input_data.model_dump(exclude_none=True)
+    result = qod.create_session(payload)
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 400)),
+            detail={
+                "code": err.get("code", "INVALID_ARGUMENT"),
+                "message": err.get("message", "Request could not be processed."),
+            },
+        )
+    return JSONResponse(status_code=int(result.get("_http_status", 201)), content=result.get("item", {}))
+
+
+@app.get("/sessions/{session_id}")
+def get_qod_session(session_id: str) -> dict[str, object]:
+    """Get a QoD session by sessionId."""
+    result = qod.get_session(session_id)
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 404)),
+            detail={
+                "code": err.get("code", "NOT_FOUND"),
+                "message": err.get("message", "The specified resource is not found."),
+            },
+        )
+    return result.get("item", {})
+
+
+@app.delete("/sessions/{session_id}")
+def delete_qod_session(session_id: str):
+    """Delete a QoD session by sessionId."""
+    from fastapi.responses import Response  # noqa: PLC0415
+
+    result = qod.delete_session(session_id)
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 404)),
+            detail={
+                "code": err.get("code", "NOT_FOUND"),
+                "message": err.get("message", "The specified resource is not found."),
+            },
+        )
+    return Response(status_code=204)
+
+
+@app.post("/sessions/{session_id}/extend")
+def extend_qod_session(session_id: str, input_data: ExtendQodSessionInput) -> dict[str, object]:
+    """Extend an active QoD session duration."""
+    payload = input_data.model_dump(exclude_none=True)
+    result = qod.extend_session(session_id, payload)
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 400)),
+            detail={
+                "code": err.get("code", "INVALID_ARGUMENT"),
+                "message": err.get("message", "Request could not be processed."),
+            },
+        )
+    return result.get("item", {})
+
+
+@app.post("/retrieve-sessions")
+def retrieve_qod_sessions(input_data: RetrieveQodSessionsInput) -> list[dict[str, object]]:
+    """Retrieve QoD sessions associated with a device."""
+    payload = input_data.model_dump(exclude_none=True)
+    result = qod.retrieve_sessions(payload)
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 400)),
+            detail={
+                "code": err.get("code", "INVALID_ARGUMENT"),
+                "message": err.get("message", "Request could not be processed."),
+            },
+        )
+    return result.get("items", [])
 
 
 @app.post("/qos-bookings")
