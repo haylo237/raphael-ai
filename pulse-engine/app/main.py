@@ -572,12 +572,19 @@ def revoke_qos_assignment(assignment_id: str):
 
 
 @app.post("/sessions")
-def create_qod_session(input_data: CreateQodSessionInput):
+def create_qod_session(
+    input_data: CreateQodSessionInput,
+    x_subject_from_token: str | None = Header(default=None),
+):
     """Create a QoD session for prioritized traffic handling."""
     from fastapi.responses import JSONResponse  # noqa: PLC0415
 
     payload = input_data.model_dump(exclude_none=True)
-    result = qod.create_session(payload)
+    token_device_identified = str(x_subject_from_token).lower() in {"1", "true", "yes"}
+    result = qod.create_session(
+        payload,
+        token_device_identified=token_device_identified,
+    )
     if "error" in result:
         err = result["error"]
         raise HTTPException(
@@ -642,10 +649,17 @@ def extend_qod_session(session_id: str, input_data: ExtendQodSessionInput) -> di
 
 
 @app.post("/retrieve-sessions")
-def retrieve_qod_sessions(input_data: RetrieveQodSessionsInput) -> list[dict[str, object]]:
+def retrieve_qod_sessions(
+    input_data: RetrieveQodSessionsInput,
+    x_subject_from_token: str | None = Header(default=None),
+) -> list[dict[str, object]]:
     """Retrieve QoD sessions associated with a device."""
     payload = input_data.model_dump(exclude_none=True)
-    result = qod.retrieve_sessions(payload)
+    token_device_identified = str(x_subject_from_token).lower() in {"1", "true", "yes"}
+    result = qod.retrieve_sessions(
+        payload,
+        token_device_identified=token_device_identified,
+    )
     if "error" in result:
         err = result["error"]
         raise HTTPException(
