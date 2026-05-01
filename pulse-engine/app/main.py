@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from app.camara import click_to_dial, congestion, connectivity_insights, device, geofencing, identity, location, qod, qos, qos_booking_assignment, region
+from app.camara import click_to_dial, congestion, connectivity_insights, device, geofencing, identity, location, qod, qos, qos_booking_assignment, qos_provisioning, region
 from app.camara.config import (
     CAMARA_NUMBER_DEVICE_PHONE_SCOPE,
     CAMARA_NUMBER_VERIFICATION_SCOPE,
@@ -170,6 +170,21 @@ class QosProfilesRetrieveInput(BaseModel):
     device: dict[str, object] | None = None
     name: str | None = None
     status: str | None = None
+
+
+class CreateQosAssignmentInput(BaseModel):
+    """Payload for CAMARA QoS Provisioning create assignment."""
+
+    device: dict[str, object] | None = None
+    qosProfile: str
+    sink: str | None = None
+    sinkCredential: dict[str, object] | None = None
+
+
+class RetrieveQosAssignmentByDeviceInput(BaseModel):
+    """Payload for CAMARA retrieve-qos-assignment."""
+
+    device: dict[str, object] | None = None
 
 
 app = FastAPI(title="Raphael Pulse", version="0.1.0")
@@ -436,6 +451,81 @@ def get_qos_profile(name: str) -> dict[str, object]:
             },
         )
     return result.get("item", {})
+
+
+@app.post("/qos-assignments")
+def create_qos_assignment(input_data: CreateQosAssignmentInput):
+    """Assign a QoS profile to a device indefinitely."""
+    from fastapi.responses import JSONResponse  # noqa: PLC0415
+
+    payload = input_data.model_dump(exclude_none=True)
+    result = qos_provisioning.create_qos_assignment(payload)
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 400)),
+            detail={
+                "code": err.get("code", "INVALID_ARGUMENT"),
+                "message": err.get("message", "Request could not be processed."),
+            },
+        )
+    status_code = int(result.pop("_http_status", 201))
+    return JSONResponse(status_code=status_code, content=result.get("item", {}))
+
+
+@app.get("/qos-assignments/{assignment_id}")
+def get_qos_assignment_by_id(assignment_id: str) -> dict[str, object]:
+    """Get assignment details by assignmentId."""
+    result = qos_provisioning.get_qos_assignment_by_id(assignment_id)
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 404)),
+            detail={
+                "code": err.get("code", "NOT_FOUND"),
+                "message": err.get("message", "The specified resource is not found."),
+            },
+        )
+    return result.get("item", {})
+
+
+@app.post("/retrieve-qos-assignment")
+def retrieve_qos_assignment_by_device(input_data: RetrieveQosAssignmentByDeviceInput) -> dict[str, object]:
+    """Get assignment details for a given device."""
+    payload = input_data.model_dump(exclude_none=True)
+    result = qos_provisioning.retrieve_qos_assignment_by_device(payload)
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 404)),
+            detail={
+                "code": err.get("code", "NOT_FOUND"),
+                "message": err.get("message", "The specified resource is not found."),
+            },
+        )
+    return result.get("item", {})
+
+
+@app.delete("/qos-assignments/{assignment_id}")
+def revoke_qos_assignment(assignment_id: str):
+    """Revoke assignment by assignmentId."""
+    from fastapi.responses import JSONResponse, Response  # noqa: PLC0415
+
+    result = qos_provisioning.revoke_qos_assignment(assignment_id)
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 404)),
+            detail={
+                "code": err.get("code", "NOT_FOUND"),
+                "message": err.get("message", "The specified resource is not found."),
+            },
+        )
+
+    status_code = int(result.get("_http_status", 204))
+    if status_code == 202:
+        return JSONResponse(status_code=202, content=result.get("item", {}))
+    return Response(status_code=204)
 
 
 @app.post("/qos-bookings")
