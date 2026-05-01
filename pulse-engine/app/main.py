@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from app.camara import click_to_dial, congestion, connectivity_insights, device, device_identifier, device_reachability_status_subscriptions, geofencing, identity, location, qod, qos, qos_booking_assignment, qos_provisioning, region
+from app.camara import click_to_dial, congestion, connectivity_insights, device, device_identifier, device_reachability_status, device_reachability_status_subscriptions, geofencing, identity, location, qod, qos, qos_booking_assignment, qos_provisioning, region
 from app.camara.config import (
     CAMARA_NUMBER_DEVICE_PHONE_SCOPE,
     CAMARA_NUMBER_VERIFICATION_SCOPE,
@@ -224,6 +224,12 @@ class MatchDeviceIdentifierInput(BaseModel):
     device: dict[str, object] | None = None
     providedIdentifierType: str
     providedIdentifier: str
+
+
+class RetrieveReachabilityStatusInput(BaseModel):
+    """Payload for Device Reachability Status retrieve."""
+
+    device: dict[str, object] | None = None
 
 
 class ReachabilitySubscriptionCreateInput(BaseModel):
@@ -501,6 +507,30 @@ def get_qos_profile(name: str) -> dict[str, object]:
             detail={
                 "code": err.get("code", "NOT_FOUND"),
                 "message": err.get("message", "The specified resource is not found."),
+            },
+        )
+    return result.get("item", {})
+
+
+@app.post("/retrieve")
+def retrieve_device_reachability_status(
+    input_data: RetrieveReachabilityStatusInput,
+    x_subject_from_token: str | None = Header(default=None),
+) -> dict[str, object]:
+    """Get current reachability status for a device."""
+    payload = input_data.model_dump(exclude_none=True)
+    token_device_identified = str(x_subject_from_token).lower() in {"1", "true", "yes"}
+    result = device_reachability_status.retrieve(
+        payload,
+        token_device_identified=token_device_identified,
+    )
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 400)),
+            detail={
+                "code": err.get("code", "INVALID_ARGUMENT"),
+                "message": err.get("message", "Request could not be processed."),
             },
         )
     return result.get("item", {})
