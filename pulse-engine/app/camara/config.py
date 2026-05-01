@@ -53,6 +53,11 @@ CAMARA_QOS_BOOKING_BASE_URL: str = os.getenv("CAMARA_QOS_BOOKING_BASE_URL", "")
 CAMARA_QOS_BOOKING_CLIENT_ID: str = os.getenv("CAMARA_QOS_BOOKING_CLIENT_ID", "")
 CAMARA_QOS_BOOKING_CLIENT_SECRET: str = os.getenv("CAMARA_QOS_BOOKING_CLIENT_SECRET", "")
 
+# Operator CAMARA QoS Profiles endpoint (not exposed in Nokia NaC passthrough).
+CAMARA_QOS_PROFILES_BASE_URL: str = os.getenv("CAMARA_QOS_PROFILES_BASE_URL", "")
+CAMARA_QOS_PROFILES_CLIENT_ID: str = os.getenv("CAMARA_QOS_PROFILES_CLIENT_ID", "")
+CAMARA_QOS_PROFILES_CLIENT_SECRET: str = os.getenv("CAMARA_QOS_PROFILES_CLIENT_SECRET", "")
+
 
 @lru_cache(maxsize=1)
 def get_nac_client():

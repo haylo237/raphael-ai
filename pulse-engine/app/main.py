@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from app.camara import click_to_dial, congestion, connectivity_insights, device, geofencing, identity, location, qod, qos_booking_assignment, region
+from app.camara import click_to_dial, congestion, connectivity_insights, device, geofencing, identity, location, qod, qos, qos_booking_assignment, region
 from app.camara.config import (
     CAMARA_NUMBER_DEVICE_PHONE_SCOPE,
     CAMARA_NUMBER_VERIFICATION_SCOPE,
@@ -162,6 +162,14 @@ class RetrieveBookingByDeviceInput(BaseModel):
     """Payload for retrieving bookings associated with one device."""
 
     device: dict[str, object] | None = None
+
+
+class QosProfilesRetrieveInput(BaseModel):
+    """Payload for CAMARA retrieve-qos-profiles."""
+
+    device: dict[str, object] | None = None
+    name: str | None = None
+    status: str | None = None
 
 
 app = FastAPI(title="Raphael Pulse", version="0.1.0")
@@ -395,6 +403,39 @@ def check_network_quality(input_data: ConnectivityInsightsInput) -> dict[str, ob
             },
         )
     return result
+
+
+@app.post("/retrieve-qos-profiles")
+def retrieve_qos_profiles(input_data: QosProfilesRetrieveInput) -> list[dict[str, object]]:
+    """Retrieve QoS profiles, optionally filtered by device, name, and status."""
+    payload = input_data.model_dump(exclude_none=True)
+    result = qos.retrieve_qos_profiles(payload)
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 400)),
+            detail={
+                "code": err.get("code", "INVALID_ARGUMENT"),
+                "message": err.get("message", "Request could not be processed."),
+            },
+        )
+    return result.get("items", [])
+
+
+@app.get("/qos-profiles/{name}")
+def get_qos_profile(name: str) -> dict[str, object]:
+    """Get one QoS profile by name."""
+    result = qos.get_qos_profile(name)
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 404)),
+            detail={
+                "code": err.get("code", "NOT_FOUND"),
+                "message": err.get("message", "The specified resource is not found."),
+            },
+        )
+    return result.get("item", {})
 
 
 @app.post("/qos-bookings")
