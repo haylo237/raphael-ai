@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from app.camara import click_to_dial, congestion, connectivity_insights, device, device_identifier, geofencing, identity, location, qod, qos, qos_booking_assignment, qos_provisioning, region
+from app.camara import click_to_dial, congestion, connectivity_insights, device, device_identifier, device_reachability_status_subscriptions, geofencing, identity, location, qod, qos, qos_booking_assignment, qos_provisioning, region
 from app.camara.config import (
     CAMARA_NUMBER_DEVICE_PHONE_SCOPE,
     CAMARA_NUMBER_VERIFICATION_SCOPE,
@@ -224,6 +224,16 @@ class MatchDeviceIdentifierInput(BaseModel):
     device: dict[str, object] | None = None
     providedIdentifierType: str
     providedIdentifier: str
+
+
+class ReachabilitySubscriptionCreateInput(BaseModel):
+    """Payload for Device Reachability Status Subscriptions create."""
+
+    protocol: str
+    sink: str
+    sinkCredential: dict[str, object] | None = None
+    types: list[str]
+    config: dict[str, object]
 
 
 app = FastAPI(title="Raphael Pulse", version="0.1.0")
@@ -1068,6 +1078,94 @@ def delete_geofencing_subscription(subscription_id: str):
         raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": result["message"]})
     if "error" in result:
         raise HTTPException(status_code=502, detail=result["message"])
+    return Response(status_code=204)
+
+
+# ---------------------------------------------------------------------------
+# Device Reachability Status Subscriptions  (CAMARA vwip)
+# ---------------------------------------------------------------------------
+
+
+@app.post("/subscriptions")
+def create_device_reachability_subscription(
+    input_data: ReachabilitySubscriptionCreateInput,
+    x_subject_from_token: str | None = Header(default=None),
+) -> dict[str, object]:
+    """Create a device reachability status subscription."""
+    from fastapi.responses import JSONResponse  # noqa: PLC0415
+
+    payload = input_data.model_dump(exclude_none=True)
+    token_device_identified = str(x_subject_from_token).lower() in {"1", "true", "yes"}
+    result = device_reachability_status_subscriptions.create_subscription(
+        payload,
+        token_device_identified=token_device_identified,
+    )
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 400)),
+            detail={
+                "code": err.get("code", "INVALID_ARGUMENT"),
+                "message": err.get("message", "Request could not be processed."),
+            },
+        )
+    item = result.get("item", {})
+    status = int(result.get("_http_status", 201))
+    if status == 202:
+        return JSONResponse(status_code=202, content=item)
+    return JSONResponse(status_code=201, content=item)
+
+
+@app.get("/subscriptions")
+def list_device_reachability_subscriptions() -> list[dict[str, object]]:
+    """Retrieve a list of device reachability status subscriptions."""
+    result = device_reachability_status_subscriptions.list_subscriptions()
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 400)),
+            detail={
+                "code": err.get("code", "INVALID_ARGUMENT"),
+                "message": err.get("message", "Request could not be processed."),
+            },
+        )
+    return result.get("items", [])
+
+
+@app.get("/subscriptions/{subscription_id}")
+def get_device_reachability_subscription(subscription_id: str) -> dict[str, object]:
+    """Retrieve a single device reachability status subscription by ID."""
+    result = device_reachability_status_subscriptions.get_subscription(subscription_id)
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 404)),
+            detail={
+                "code": err.get("code", "NOT_FOUND"),
+                "message": err.get("message", "The specified resource is not found."),
+            },
+        )
+    return result.get("item", {})
+
+
+@app.delete("/subscriptions/{subscription_id}")
+def delete_device_reachability_subscription(subscription_id: str):
+    """Delete a device reachability status subscription by ID."""
+    from fastapi.responses import JSONResponse, Response  # noqa: PLC0415
+
+    result = device_reachability_status_subscriptions.delete_subscription(subscription_id)
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 404)),
+            detail={
+                "code": err.get("code", "NOT_FOUND"),
+                "message": err.get("message", "The specified resource is not found."),
+            },
+        )
+    status = int(result.get("_http_status", 204))
+    if status == 202:
+        return JSONResponse(status_code=202, content=result.get("item", {}))
     return Response(status_code=204)
 
 
