@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from app.camara import click_to_dial, congestion, connectivity_insights, device, geofencing, identity, location, qod, region
+from app.camara import click_to_dial, congestion, connectivity_insights, device, geofencing, identity, location, qod, qos_booking_assignment, region
 from app.camara.config import (
     CAMARA_NUMBER_DEVICE_PHONE_SCOPE,
     CAMARA_NUMBER_VERIFICATION_SCOPE,
@@ -136,6 +136,32 @@ class ConnectivityInsightsInput(BaseModel):
     applicationServer: dict[str, object] | None = None
     applicationServerPorts: dict[str, object] | None = None
     monitoringTimeStamp: str | None = None
+
+
+class QosBookingInput(BaseModel):
+    """Payload for creating a QoS booking."""
+
+    numDevices: int | None = Field(default=1, ge=1)
+    qosProfile: str
+    startTime: str
+    duration: int = Field(ge=1)
+    serviceArea: dict[str, object]
+    sink: str | None = None
+    sinkCredential: dict[str, object] | None = None
+
+
+class DeviceAssignmentInput(BaseModel):
+    """Payload for assigning/releasing devices from a booking."""
+
+    devices: list[dict[str, object]] | None = None
+    sink: str | None = None
+    sinkCredential: dict[str, object] | None = None
+
+
+class RetrieveBookingByDeviceInput(BaseModel):
+    """Payload for retrieving bookings associated with one device."""
+
+    device: dict[str, object] | None = None
 
 
 app = FastAPI(title="Raphael Pulse", version="0.1.0")
@@ -369,6 +395,136 @@ def check_network_quality(input_data: ConnectivityInsightsInput) -> dict[str, ob
             },
         )
     return result
+
+
+@app.post("/qos-bookings")
+def create_qos_booking(input_data: QosBookingInput):
+    """Reserve QoS booking in advance for a service area and time slot."""
+    from fastapi.responses import JSONResponse  # noqa: PLC0415
+
+    payload = input_data.model_dump(exclude_none=True)
+    result = qos_booking_assignment.create_booking(payload)
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 400)),
+            detail={
+                "code": err.get("code", "INVALID_ARGUMENT"),
+                "message": err.get("message", "Request could not be processed."),
+            },
+        )
+    status_code = int(result.pop("_http_status", 201))
+    return JSONResponse(status_code=status_code, content=result)
+
+
+@app.get("/qos-bookings/{booking_id}")
+def get_qos_booking(booking_id: str) -> dict[str, object]:
+    """Retrieve QoS booking details by bookingId."""
+    result = qos_booking_assignment.get_booking(booking_id)
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 404)),
+            detail={
+                "code": err.get("code", "NOT_FOUND"),
+                "message": err.get("message", "The specified resource is not found."),
+            },
+        )
+    result.pop("_http_status", None)
+    return result
+
+
+@app.delete("/qos-bookings/{booking_id}")
+def delete_qos_booking(booking_id: str):
+    """Cancel an existing QoS booking and release associated resources."""
+    from fastapi.responses import JSONResponse  # noqa: PLC0415
+
+    result = qos_booking_assignment.delete_booking(booking_id)
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 404)),
+            detail={
+                "code": err.get("code", "NOT_FOUND"),
+                "message": err.get("message", "The specified resource is not found."),
+            },
+        )
+    status_code = int(result.pop("_http_status", 200))
+    return JSONResponse(status_code=status_code, content=result)
+
+
+@app.post("/qos-bookings/{booking_id}/devices/assign")
+def assign_qos_booking_devices(booking_id: str, input_data: DeviceAssignmentInput):
+    """Assign one or more devices to an existing QoS booking."""
+    from fastapi.responses import JSONResponse  # noqa: PLC0415
+
+    payload = input_data.model_dump(exclude_none=True)
+    result = qos_booking_assignment.assign_devices(booking_id, payload)
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 400)),
+            detail={
+                "code": err.get("code", "INVALID_ARGUMENT"),
+                "message": err.get("message", "Request could not be processed."),
+            },
+        )
+    status_code = int(result.pop("_http_status", 201))
+    return JSONResponse(status_code=status_code, content=result)
+
+
+@app.get("/qos-bookings/{booking_id}/devices")
+def get_qos_booking_devices(booking_id: str) -> dict[str, object]:
+    """Get the list of devices currently assigned to a QoS booking."""
+    result = qos_booking_assignment.get_assigned_devices(booking_id)
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 404)),
+            detail={
+                "code": err.get("code", "NOT_FOUND"),
+                "message": err.get("message", "The specified resource is not found."),
+            },
+        )
+    result.pop("_http_status", None)
+    return result
+
+
+@app.post("/qos-bookings/{booking_id}/devices/release")
+def release_qos_booking_devices(booking_id: str, input_data: DeviceAssignmentInput):
+    """Release one or more devices from a QoS booking."""
+    from fastapi.responses import JSONResponse  # noqa: PLC0415
+
+    payload = input_data.model_dump(exclude_none=True)
+    result = qos_booking_assignment.release_devices(booking_id, payload)
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 400)),
+            detail={
+                "code": err.get("code", "INVALID_ARGUMENT"),
+                "message": err.get("message", "Request could not be processed."),
+            },
+        )
+    status_code = int(result.pop("_http_status", 200))
+    return JSONResponse(status_code=status_code, content=result)
+
+
+@app.post("/qos-bookings/retrieve")
+def retrieve_qos_bookings_by_device(input_data: RetrieveBookingByDeviceInput) -> list[dict[str, object]]:
+    """Retrieve all bookings associated with one device."""
+    payload = input_data.model_dump(exclude_none=True)
+    result = qos_booking_assignment.retrieve_bookings_by_device(payload)
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 400)),
+            detail={
+                "code": err.get("code", "INVALID_ARGUMENT"),
+                "message": err.get("message", "Request could not be processed."),
+            },
+        )
+    return result.get("items", [])
 
 
 @app.post("/calls", status_code=201)
