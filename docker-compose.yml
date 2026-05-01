@@ -4,6 +4,8 @@ services:
   backend-laravel:
     image: php:8.3-cli
     working_dir: /app
+    environment:
+      PULSE_ENGINE_URL: http://pulse-engine:8001
     volumes:
       - ./backend-laravel:/app
     ports:
@@ -17,4 +19,4 @@ services:
       - ./pulse-engine:/app
     ports:
       - "8001:8001"
-    command: ["python", "app/main.py"]
+    command: ["sh", "-c", "pip install -r requirements.txt && uvicorn app.main:app --host 0.0.0.0 --port 8001"]

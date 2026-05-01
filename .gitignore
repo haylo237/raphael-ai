@@ -1,0 +1,27 @@
+# Node / Expo
+mobile/node_modules/
+mobile/.expo/
+mobile/dist/
+
+# Python
+pulse-engine/.venv/
+pulse-engine/__pycache__/
+pulse-engine/app/__pycache__/
+pulse-engine/app/services/__pycache__/
+*.pyc
+
+# Env files
+.env
+backend-laravel/.env
+pulse-engine/.env
+mobile/.env
+
+# Laravel vendor
+backend-laravel/vendor/
+
+# OS / editor
+.DS_Store
+.vscode/
+
+# Scaffold placeholders (not needed after real files are added)
+**/.gitkeep

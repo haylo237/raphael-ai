@@ -191,14 +191,71 @@ raphael-ai/
 
 ## Getting Started
 
-This repository currently provides project structure and architecture scaffolding.
+This repository now includes a runnable starter stack:
 
-### Suggested next steps
+- `mobile`: Expo React Native intake client
+- `backend-laravel`: lightweight PHP API gateway scaffold in Laravel module folder
+- `pulse-engine`: FastAPI-based Raphael Pulse decision engine
 
-1. Initialize each module (`mobile`, `backend-laravel`, `pulse-engine`) with runnable code.
-2. Define API contracts between Laravel and Raphael Pulse.
-3. Add CAMARA API integration stubs with environment-based configuration.
-4. Add a demo scenario script for emergency flow end-to-end testing.
+### Option A: Run with Docker Compose
+
+```bash
+docker compose up
+```
+
+Endpoints:
+
+- Gateway health: `http://localhost:8000/health`
+- Pulse health: `http://localhost:8001/health`
+
+### Option B: Run Locally (without Docker)
+
+1. Start Raphael Pulse:
+
+```bash
+cd pulse-engine
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
+```
+
+2. Start backend gateway:
+
+```bash
+cd backend-laravel
+PULSE_ENGINE_URL=http://localhost:8001 php -S 0.0.0.0:8000 -t public
+```
+
+3. Start mobile app:
+
+```bash
+cd mobile
+npm install
+EXPO_PUBLIC_API_URL=http://localhost:8000 npm start
+```
+
+### Quick API Test
+
+```bash
+curl -X POST http://localhost:8000/cases \
+        -H "Content-Type: application/json" \
+        -d '{
+                "patient_id": "patient-001",
+                "symptoms": ["chest pain", "dizziness"],
+                "urgency": "emergency",
+                "network_quality": "poor",
+                "device_reachable": true,
+                "location": "Kampala"
+        }'
+```
+
+### Next Build Targets
+
+1. Replace PHP router with full Laravel controllers and middleware.
+2. Add CAMARA integration adapters in `pulse-engine/app/camara`.
+3. Add persistence and case tracking in `backend-laravel`.
+4. Add role-based mobile experiences (doctor and nurse modules).
 
 ## License
 
