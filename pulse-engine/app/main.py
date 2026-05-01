@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from app.camara import congestion, device, geofencing, identity, location, qod
+from app.camara import click_to_dial, congestion, connectivity_insights, device, geofencing, identity, location, qod, region
 from app.camara.config import (
     CAMARA_NUMBER_DEVICE_PHONE_SCOPE,
     CAMARA_NUMBER_VERIFICATION_SCOPE,
@@ -99,6 +99,43 @@ class LocationRetrieveInput(BaseModel):
         ge=1,
         description="Max acceptable area surface in square meters. Omit for any size.",
     )
+
+
+class RegionDeviceCountInput(BaseModel):
+    """Payload for CAMARA Region Device Count /count."""
+
+    area: dict[str, object]
+    starttime: str | None = None
+    endtime: str | None = None
+    filter: dict[str, object] | None = None
+    sink: str | None = None
+    sinkCredential: dict[str, object] | None = None
+
+
+class ClickToDialPartyInput(BaseModel):
+    """Party object for Click-to-Dial caller/callee."""
+
+    number: str = Field(min_length=1)
+
+
+class ClickToDialCreateInput(BaseModel):
+    """Payload for creating a Click-to-Dial call."""
+
+    caller: ClickToDialPartyInput
+    callee: ClickToDialPartyInput
+    sink: str | None = None
+    sinkCredential: dict[str, object] | None = None
+    recordingEnabled: bool = False
+
+
+class ConnectivityInsightsInput(BaseModel):
+    """Payload for CAMARA Connectivity Insights check-network-quality."""
+
+    applicationProfileId: str
+    device: dict[str, object] | None = None
+    applicationServer: dict[str, object] | None = None
+    applicationServerPorts: dict[str, object] | None = None
+    monitoringTimeStamp: str | None = None
 
 
 app = FastAPI(title="Raphael Pulse", version="0.1.0")
@@ -292,6 +329,113 @@ def verify_location(input_data: LocationVerifyInput) -> dict[str, object]:
         radius_meters=input_data.radius_meters,
         max_age_seconds=input_data.max_age_seconds,
     )
+
+
+@app.post("/region-device-count/count")
+def region_device_count(input_data: RegionDeviceCountInput) -> dict[str, object]:
+    """Return count of devices for a circle/polygon area in an optional time interval.
+
+    Mirrors CAMARA Region Device Count vwip `/count` request and response shapes.
+    """
+    payload = input_data.model_dump(exclude_none=True)
+    result = region.count_devices(payload)
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 400)),
+            detail={
+                "code": err.get("code", "INVALID_ARGUMENT"),
+                "message": err.get("message", "Request could not be processed."),
+            },
+        )
+    return result
+
+
+@app.post("/check-network-quality")
+def check_network_quality(input_data: ConnectivityInsightsInput) -> dict[str, object]:
+    """Check network confidence in meeting app profile quality requirements.
+
+    Implements CAMARA Connectivity Insights POST /check-network-quality.
+    """
+    payload = input_data.model_dump(exclude_none=True)
+    result = connectivity_insights.check_network_quality(payload)
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 400)),
+            detail={
+                "code": err.get("code", "INVALID_ARGUMENT"),
+                "message": err.get("message", "Request could not be processed."),
+            },
+        )
+    return result
+
+
+@app.post("/calls", status_code=201)
+def create_click_to_dial_call(input_data: ClickToDialCreateInput) -> dict[str, object]:
+    """Create a new Click-to-Dial call session (CAMARA POST /calls)."""
+    payload = input_data.model_dump(exclude_none=True)
+    result = click_to_dial.create_call(payload)
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 400)),
+            detail={
+                "code": err.get("code", "INVALID_ARGUMENT"),
+                "message": err.get("message", "Request could not be processed."),
+            },
+        )
+    return result
+
+
+@app.get("/calls/{call_id}")
+def get_click_to_dial_call(call_id: str) -> dict[str, object]:
+    """Get call details (CAMARA GET /calls/{callId})."""
+    result = click_to_dial.get_call(call_id)
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 404)),
+            detail={
+                "code": err.get("code", "NOT_FOUND"),
+                "message": err.get("message", "The specified resource is not found."),
+            },
+        )
+    return result
+
+
+@app.delete("/calls/{call_id}", status_code=204)
+def terminate_click_to_dial_call(call_id: str):
+    """Terminate an active call (CAMARA DELETE /calls/{callId})."""
+    from fastapi.responses import Response  # noqa: PLC0415
+
+    result = click_to_dial.terminate_call(call_id)
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 400)),
+            detail={
+                "code": err.get("code", "INVALID_ARGUMENT"),
+                "message": err.get("message", "Request could not be processed."),
+            },
+        )
+    return Response(status_code=204)
+
+
+@app.get("/calls/{call_id}/recording")
+def get_click_to_dial_recording(call_id: str) -> dict[str, object]:
+    """Retrieve call recording (CAMARA GET /calls/{callId}/recording)."""
+    result = click_to_dial.get_recording(call_id)
+    if "error" in result:
+        err = result["error"]
+        raise HTTPException(
+            status_code=int(err.get("status", 404)),
+            detail={
+                "code": err.get("code", "NOT_FOUND"),
+                "message": err.get("message", "The specified resource is not found."),
+            },
+        )
+    return result
 
 
 # ---------------------------------------------------------------------------
