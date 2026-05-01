@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from app.camara import congestion, device, identity, location, qod
+from app.camara import congestion, device, geofencing, identity, location, qod
 from app.camara.config import (
     CAMARA_NUMBER_DEVICE_PHONE_SCOPE,
     CAMARA_NUMBER_VERIFICATION_SCOPE,
@@ -292,6 +292,98 @@ def verify_location(input_data: LocationVerifyInput) -> dict[str, object]:
         radius_meters=input_data.radius_meters,
         max_age_seconds=input_data.max_age_seconds,
     )
+
+
+# ---------------------------------------------------------------------------
+# Geofencing Subscriptions  (CAMARA geofencing-subscriptions vwip)
+# ---------------------------------------------------------------------------
+
+class GeofencingSubscribeInput(BaseModel):
+    """Payload for creating a geofencing subscription."""
+
+    phone_number: str = Field(min_length=1)
+    sink: str = Field(
+        min_length=8,
+        description="HTTPS callback URL where CloudEvent notifications will be POSTed.",
+    )
+    types: list[str] = Field(
+        min_length=1,
+        max_length=1,
+        description=(
+            "One event type: "
+            "'org.camaraproject.geofencing-subscriptions.v0.area-entered' or "
+            "'org.camaraproject.geofencing-subscriptions.v0.area-left'."
+        ),
+    )
+    center_latitude: float = Field(ge=-90, le=90)
+    center_longitude: float = Field(ge=-180, le=180)
+    radius: float = Field(gt=0, description="Circle radius in meters (minimum 1).")
+    subscription_expire_time: str | None = Field(
+        default=None,
+        description="ISO-8601 datetime at which the subscription expires.",
+    )
+    subscription_max_events: int | None = Field(default=None, ge=1)
+    initial_event: bool | None = None
+
+
+@app.post("/geofencing/subscriptions", status_code=201)
+def create_geofencing_subscription(input_data: GeofencingSubscribeInput) -> dict[str, object]:
+    """Create a geofencing subscription for area-entered or area-left events.
+
+    The subscriber receives CloudEvent notifications via POST to `sink` whenever
+    the device enters or leaves the specified circular area.
+    """
+    result = geofencing.create_subscription(
+        phone_number=input_data.phone_number,
+        sink=input_data.sink,
+        event_types=input_data.types,
+        center_latitude=input_data.center_latitude,
+        center_longitude=input_data.center_longitude,
+        radius=input_data.radius,
+        subscription_expire_time=input_data.subscription_expire_time,
+        subscription_max_events=input_data.subscription_max_events,
+        initial_event=input_data.initial_event,
+    )
+    if "error" in result:
+        status = 422 if result["error"] in (
+            "GEOFENCING_SUBSCRIPTIONS.AREA_NOT_COVERED",
+            "GEOFENCING_SUBSCRIPTIONS.INVALID_AREA",
+        ) else 400
+        raise HTTPException(status_code=status, detail={"code": result["error"], "message": result["message"]})
+    return result
+
+
+@app.get("/geofencing/subscriptions")
+def list_geofencing_subscriptions() -> list[dict[str, object]]:
+    """Retrieve all active geofencing subscriptions."""
+    return geofencing.list_subscriptions()
+
+
+@app.get("/geofencing/subscriptions/{subscription_id}")
+def get_geofencing_subscription(subscription_id: str) -> dict[str, object]:
+    """Retrieve a single geofencing subscription by ID."""
+    result = geofencing.get_subscription(subscription_id)
+    if result.get("error") == "NOT_FOUND":
+        raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": result["message"]})
+    if "error" in result:
+        raise HTTPException(status_code=502, detail=result["message"])
+    return result
+
+
+@app.delete("/geofencing/subscriptions/{subscription_id}")
+def delete_geofencing_subscription(subscription_id: str):
+    """Delete a geofencing subscription.
+
+    Returns HTTP 204 No Content on success, matching the CAMARA spec.
+    """
+    from fastapi.responses import Response  # noqa: PLC0415
+
+    result = geofencing.delete_subscription(subscription_id)
+    if result.get("error") == "NOT_FOUND":
+        raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": result["message"]})
+    if "error" in result:
+        raise HTTPException(status_code=502, detail=result["message"])
+    return Response(status_code=204)
 
 
 @app.post("/decide")
