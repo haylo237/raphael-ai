@@ -3,7 +3,7 @@
 import secrets
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from app.camara import click_to_dial, congestion, connectivity_insights, device, geofencing, identity, location, qod, qos, qos_booking_assignment, qos_provisioning, region
@@ -446,10 +446,14 @@ def check_network_quality(input_data: ConnectivityInsightsInput) -> dict[str, ob
 
 
 @app.post("/retrieve-qos-profiles")
-def retrieve_qos_profiles(input_data: QosProfilesRetrieveInput) -> list[dict[str, object]]:
+def retrieve_qos_profiles(
+    input_data: QosProfilesRetrieveInput,
+    x_subject_from_token: str | None = Header(default=None),
+) -> list[dict[str, object]]:
     """Retrieve QoS profiles, optionally filtered by device, name, and status."""
     payload = input_data.model_dump(exclude_none=True)
-    result = qos.retrieve_qos_profiles(payload)
+    token_device_identified = str(x_subject_from_token).lower() in {"1", "true", "yes"}
+    result = qos.retrieve_qos_profiles(payload, token_device_identified=token_device_identified)
     if "error" in result:
         err = result["error"]
         raise HTTPException(

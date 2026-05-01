@@ -22,6 +22,7 @@ from app.camara.http_client import nac_delete, nac_post
 _TIMEOUT = 10.0
 _VALID_STATUS = {"ACTIVE", "INACTIVE", "DEPRECATED"}
 _QOS_PROFILE_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9_.-]+$")
+_PHONE_PATTERN = re.compile(r"^\+[1-9][0-9]{4,14}$")
 
 _MOCK_PROFILES: list[dict[str, object]] = [
     {
@@ -66,7 +67,18 @@ _MOCK_PROFILES: list[dict[str, object]] = [
 ]
 
 
-def _validate_device(device: dict[str, object] | None) -> dict[str, object] | None:
+def _validate_device(
+    device: dict[str, object] | None,
+    *,
+    token_device_identified: bool = False,
+) -> dict[str, object] | None:
+    if token_device_identified and device is not None:
+        return {
+            "status": 422,
+            "code": "UNNECESSARY_IDENTIFIER",
+            "message": "The device is already identified by the access token.",
+        }
+
     if device is None:
         return None
     if not isinstance(device, dict) or len(device) == 0:
@@ -76,7 +88,7 @@ def _validate_device(device: dict[str, object] | None) -> dict[str, object] | No
             "message": "The identifier provided is not supported.",
         }
 
-    supported = {"phoneNumber", "networkAccessIdentifier", "ipv4Address", "ipv6Address"}
+    supported = {"phoneNumber", "ipv4Address", "ipv6Address", "networkAccessIdentifier"}
     present = [k for k in supported if k in device]
     if len(present) == 0:
         return {
@@ -85,9 +97,16 @@ def _validate_device(device: dict[str, object] | None) -> dict[str, object] | No
             "message": "The identifier provided is not supported.",
         }
 
+    if "networkAccessIdentifier" in device:
+        return {
+            "status": 422,
+            "code": "UNSUPPORTED_IDENTIFIER",
+            "message": "The identifier provided is not supported.",
+        }
+
     phone = device.get("phoneNumber")
     if phone is not None:
-        if not isinstance(phone, str) or not phone.startswith("+"):
+        if not isinstance(phone, str) or _PHONE_PATTERN.fullmatch(phone) is None:
             return {
                 "status": 400,
                 "code": "INVALID_ARGUMENT",
@@ -181,13 +200,20 @@ def _apply_filters(profiles: list[dict[str, object]], name: str | None, status: 
     return out
 
 
-def retrieve_qos_profiles(payload: dict[str, object]) -> dict[str, object]:
+def retrieve_qos_profiles(
+    payload: dict[str, object],
+    *,
+    token_device_identified: bool = False,
+) -> dict[str, object]:
     """Retrieve QoS profiles by optional device/name/status filters."""
     device = payload.get("device") if isinstance(payload.get("device"), dict) else payload.get("device")
     name = payload.get("name")
     status = payload.get("status")
 
-    device_error = _validate_device(device if isinstance(device, dict) else None)
+    device_error = _validate_device(
+        device if isinstance(device, dict) else None,
+        token_device_identified=token_device_identified,
+    )
     if device_error:
         return {"error": device_error}
 
