@@ -483,12 +483,19 @@ def get_qos_profile(name: str) -> dict[str, object]:
 
 
 @app.post("/qos-assignments")
-def create_qos_assignment(input_data: CreateQosAssignmentInput):
+def create_qos_assignment(
+    input_data: CreateQosAssignmentInput,
+    x_subject_from_token: str | None = Header(default=None),
+):
     """Assign a QoS profile to a device indefinitely."""
     from fastapi.responses import JSONResponse  # noqa: PLC0415
 
     payload = input_data.model_dump(exclude_none=True)
-    result = qos_provisioning.create_qos_assignment(payload)
+    token_device_identified = str(x_subject_from_token).lower() in {"1", "true", "yes"}
+    result = qos_provisioning.create_qos_assignment(
+        payload,
+        token_device_identified=token_device_identified,
+    )
     if "error" in result:
         err = result["error"]
         raise HTTPException(
@@ -519,10 +526,17 @@ def get_qos_assignment_by_id(assignment_id: str) -> dict[str, object]:
 
 
 @app.post("/retrieve-qos-assignment")
-def retrieve_qos_assignment_by_device(input_data: RetrieveQosAssignmentByDeviceInput) -> dict[str, object]:
+def retrieve_qos_assignment_by_device(
+    input_data: RetrieveQosAssignmentByDeviceInput,
+    x_subject_from_token: str | None = Header(default=None),
+) -> dict[str, object]:
     """Get assignment details for a given device."""
     payload = input_data.model_dump(exclude_none=True)
-    result = qos_provisioning.retrieve_qos_assignment_by_device(payload)
+    token_device_identified = str(x_subject_from_token).lower() in {"1", "true", "yes"}
+    result = qos_provisioning.retrieve_qos_assignment_by_device(
+        payload,
+        token_device_identified=token_device_identified,
+    )
     if "error" in result:
         err = result["error"]
         raise HTTPException(

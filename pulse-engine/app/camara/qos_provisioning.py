@@ -120,8 +120,22 @@ def _validate_sink_and_credentials(payload: dict[str, object]) -> dict[str, obje
     return None
 
 
-def _validate_device(device: object, *, required: bool) -> dict[str, object] | None:
+def _validate_device(
+    device: object,
+    *,
+    required: bool,
+    token_device_identified: bool = False,
+) -> dict[str, object] | None:
+    if token_device_identified and device is not None:
+        return {
+            "status": 422,
+            "code": "UNNECESSARY_IDENTIFIER",
+            "message": "The device is already identified by the access token.",
+        }
+
     if device is None:
+        if token_device_identified:
+            return None
         if required:
             return {
                 "status": 422,
@@ -307,13 +321,21 @@ def _parse_operator_error(response: httpx.Response, default_code: str) -> dict[s
     }
 
 
-def create_qos_assignment(payload: dict[str, object]) -> dict[str, object]:
+def create_qos_assignment(
+    payload: dict[str, object],
+    *,
+    token_device_identified: bool = False,
+) -> dict[str, object]:
     """Create a persistent QoS assignment for a device."""
     err = _validate_qos_profile_name(payload.get("qosProfile"))
     if err:
         return {"error": err}
 
-    err = _validate_device(payload.get("device"), required=True)
+    err = _validate_device(
+        payload.get("device"),
+        required=True,
+        token_device_identified=token_device_identified,
+    )
     if err:
         return {"error": err}
 
@@ -424,9 +446,17 @@ def get_qos_assignment_by_id(assignment_id: str) -> dict[str, object]:
         return {"_http_status": 200, "item": out, "mock": True, "live_error": str(exc)}
 
 
-def retrieve_qos_assignment_by_device(payload: dict[str, object]) -> dict[str, object]:
+def retrieve_qos_assignment_by_device(
+    payload: dict[str, object],
+    *,
+    token_device_identified: bool = False,
+) -> dict[str, object]:
     """Retrieve assignment details by device identifiers."""
-    err = _validate_device(payload.get("device"), required=True)
+    err = _validate_device(
+        payload.get("device"),
+        required=True,
+        token_device_identified=token_device_identified,
+    )
     if err:
         return {"error": err}
 
