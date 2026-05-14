@@ -2,61 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { getNavGroupsForRole } from "../lib/roleExperience";
 
-const CORE_NAV_GROUPS = [
-  {
-    label: "Main",
-    items: [{ href: "/dashboard", label: "Dashboard" }],
-  },
-  {
-    label: "Clinical Operations",
-    items: [
-      { href: "/patients", label: "Patients" },
-      { href: "/consultations", label: "Consultations" },
-      { href: "/emergency/feed", label: "Emergency Cases" },
-      { href: "/hospital/queue", label: "Admissions & Queue" },
-      { href: "/staff", label: "Doctors & Staff" },
-      { href: "/reports", label: "Reports" },
-    ],
-  },
-  {
-    label: "Emergency Coordination",
-    items: [
-      { href: "/emergency/feed", label: "Live Emergency Feed" },
-      { href: "/emergency/pulse", label: "Pulse Insights" },
-    ],
-  },
-];
-
-const ADVANCED_NAV_GROUP = {
-  label: "System & Network Tools",
-  items: [
-    { href: "/triage", label: "Case Triage" },
-    { href: "/reachability", label: "Device Reachability" },
-    { href: "/subscriptions", label: "Reachability Subscriptions" },
-    { href: "/location", label: "Location Lookup" },
-    { href: "/identity", label: "Identity & OTP" },
-    { href: "/qod", label: "QoD Sessions" },
-    { href: "/qos", label: "QoS Assignments" },
-    { href: "/device-identifier", label: "Device Identifier" },
-    { href: "/geofencing", label: "Geofencing" },
-    { href: "/click-to-dial", label: "Click-to-Dial" },
-  ],
-};
-
-function canViewAdvanced(user) {
-  const role = String(user?.role || "").toLowerCase();
-  return ["admin", "technical_admin", "ops_admin", "developer"].includes(role);
-}
-
-export default function Sidebar({ user }) {
+export default function Sidebar({ user, mobileOpen, onNavigate }) {
   const pathname = usePathname();
-  const navGroups = canViewAdvanced(user)
-    ? [...CORE_NAV_GROUPS, ADVANCED_NAV_GROUP]
-    : CORE_NAV_GROUPS;
+  const navGroups = getNavGroupsForRole(user?.role);
 
   return (
-    <aside className="fixed top-0 left-0 h-full w-60 bg-slate-800 text-slate-100 flex flex-col z-10">
+    <aside
+      className={`fixed top-0 left-0 h-full w-60 bg-slate-800 text-slate-100 flex flex-col z-30 transform transition-transform md:translate-x-0 ${
+        mobileOpen ? "translate-x-0" : "-translate-x-full"
+      }`}
+    >
       <div className="px-5 py-4 border-b border-slate-700">
         <span className="font-bold text-white text-lg">Raphael AI</span>
         <span className="block text-slate-400 text-xs mt-0.5">Hospital Operations</span>
@@ -73,6 +30,7 @@ export default function Sidebar({ user }) {
                 <Link
                   key={href}
                   href={href}
+                  onClick={onNavigate}
                   className={`block px-5 py-2 text-sm transition-colors ${
                     active
                       ? "bg-blue-600 text-white font-medium"

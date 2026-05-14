@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import * as api from "./api";
+import { getHomeRouteForRole } from "./roleExperience";
 
 const AuthContext = createContext(null);
 
@@ -64,7 +65,7 @@ export function AuthProvider({ children }) {
       const res = await api.login(creds);
       api.setAuthToken(res.token);
       setUser(res.user);
-      router.replace("/dashboard");
+      router.replace(getHomeRouteForRole(res.user?.role));
       return res;
     } catch (e) {
       setError(e.message || "Login failed");
