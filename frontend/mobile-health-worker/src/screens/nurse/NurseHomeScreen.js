@@ -3,6 +3,7 @@ import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native
 
 import Badge from "../../components/shared/Badge";
 import PrimaryButton from "../../components/shared/PrimaryButton";
+import RoleHero from "../../components/shared/RoleHero";
 import Screen from "../../components/shared/Screen";
 import Section from "../../components/shared/Section";
 import { usePatientStore } from "../../services/PatientStore";
@@ -19,6 +20,12 @@ export default function NurseHomeScreen({ navigation, route }) {
       subtitle="Online · Pulse network ready"
       title={`Hello, ${nurseName}`}
     >
+      <RoleHero
+        eyebrow="Nurse Operations"
+        title="Fast triage workflow"
+        subtitle="Register patients, record vitals, and trigger emergency response in minimal taps."
+      />
+
       <View style={styles.statRow}>
         <View style={styles.statCard}>
           <Text style={styles.statValue}>{patients.length}</Text>

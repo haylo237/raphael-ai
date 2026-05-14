@@ -1,44 +1,43 @@
 /**
- * Centralised design tokens for the Raphael nurse app.
+ * Centralised design tokens for the Raphael patient app.
  *
- * Visual language: futuristic medical — dark navy canvas, cyan tech accent,
- * subtle borders, glow on primary actions, monospace for IDs/timestamps.
+ * Visual language: calm, reassuring, simple.
  */
 export const colors = {
   // Canvas
-  bg: "#06101f",
-  bgElevated: "#0d1b2a",
-  surface: "#11243a",
-  surfaceAlt: "#0f1e30",
-  surfaceHi: "#173552",
+  bg: "#f5f9ff",
+  bgElevated: "#ffffff",
+  surface: "#ffffff",
+  surfaceAlt: "#eef4ff",
+  surfaceHi: "#e6f0ff",
 
   // Borders / dividers
-  border: "#1f3a5a",
-  borderStrong: "#2a4d75",
-  borderGlow: "#1a4d6e",
+  border: "#d8e5f8",
+  borderStrong: "#bfd3ef",
+  borderGlow: "#a8c6ef",
 
   // Brand
-  primary: "#4cc9f0",      // cyan — primary tech accent
-  primarySoft: "#7fdcff",
-  primaryDeep: "#0a3d62",
-  accent: "#22d3ee",        // bright teal accent
-  accentSoft: "rgba(34,211,238,0.12)",
+  primary: "#2f6ecf",
+  primarySoft: "#5f8fe0",
+  primaryDeep: "#1f4f97",
+  accent: "#20a58f",
+  accentSoft: "rgba(32,165,143,0.14)",
 
   // Semantic
-  success: "#34d399",
-  successSoft: "rgba(52,211,153,0.14)",
-  warning: "#fbbf24",
-  warningSoft: "rgba(251,191,36,0.14)",
-  danger: "#ff5470",
-  dangerSoft: "rgba(255,84,112,0.14)",
-  info: "#60a5fa",
-  infoSoft: "rgba(96,165,250,0.16)",
+  success: "#2d9b73",
+  successSoft: "rgba(45,155,115,0.14)",
+  warning: "#d79c2c",
+  warningSoft: "rgba(215,156,44,0.14)",
+  danger: "#d44545",
+  dangerSoft: "rgba(212,69,69,0.14)",
+  info: "#3f78d7",
+  infoSoft: "rgba(63,120,215,0.16)",
 
   // Text
-  textPrimary: "#e6f1ff",
-  textSecondary: "#9fb6cf",
-  textMuted: "#6e8aa8",
-  textInverse: "#06101f",
+  textPrimary: "#1c2a3a",
+  textSecondary: "#4f6280",
+  textMuted: "#6f7f98",
+  textInverse: "#f5f9ff",
 };
 
 export const spacing = {
@@ -98,16 +97,16 @@ export const typography = {
 export const elevation = {
   card: {
     shadowColor: "#000",
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
     shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
+    elevation: 3,
   },
   glow: {
     shadowColor: colors.primary,
-    shadowOpacity: 0.45,
-    shadowRadius: 12,
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
     shadowOffset: { width: 0, height: 0 },
-    elevation: 4,
+    elevation: 2,
   },
 };

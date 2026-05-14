@@ -3,6 +3,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import Badge from "../../components/shared/Badge";
 import PillGroup from "../../components/shared/PillGroup";
+import RoleHero from "../../components/shared/RoleHero";
 import Screen from "../../components/shared/Screen";
 import Section from "../../components/shared/Section";
 import { colors, spacing, typography } from "../../theme";
@@ -32,6 +33,12 @@ export default function CaseListScreen({ navigation }) {
 
   return (
     <Screen subtitle="Clinical workflow queue" title="Cases">
+      <RoleHero
+        eyebrow="Assigned Cases"
+        title="Urgency-first case list"
+        subtitle="Open any case to access full consultation context and emergency actions."
+      />
+
       <PillGroup label="Type" options={TABS} value={tab} onChange={setTab} />
       <PillGroup label="Status" options={STATUS_FILTERS} value={status} onChange={setStatus} />
 

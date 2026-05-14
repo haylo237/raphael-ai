@@ -3,6 +3,7 @@ import { RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-
 
 import Badge from "../../components/shared/Badge";
 import PrimaryButton from "../../components/shared/PrimaryButton";
+import RoleHero from "../../components/shared/RoleHero";
 import Screen from "../../components/shared/Screen";
 import Section from "../../components/shared/Section";
 import { colors, radius, spacing, typography } from "../../theme";
@@ -54,6 +55,12 @@ export default function DashboardScreen({ navigation }) {
       subtitle={`Hello, ${state.name || "Doctor"} · ${state.specialty || ""}`}
       title="Clinical Dashboard"
     >
+      <RoleHero
+        eyebrow="Doctor Workspace"
+        title="Consultation-first view"
+        subtitle="Keep focus on assigned cases, emergency actions, and clinical context."
+      />
+
       <View style={styles.statRow}>
         <View style={styles.statCard}>
           <Text style={styles.statValue}>{todays.length}</Text>

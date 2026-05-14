@@ -3,6 +3,7 @@ import { Alert } from "react-native";
 
 import Field from "../../components/shared/Field";
 import PrimaryButton from "../../components/shared/PrimaryButton";
+import RoleHero from "../../components/shared/RoleHero";
 import Screen from "../../components/shared/Screen";
 import Section from "../../components/shared/Section";
 import { usePatientStore } from "../../services/PatientStore";
@@ -50,6 +51,12 @@ export default function RecordVitalsScreen({ navigation, route }) {
       title="Record Vitals"
       subtitle={`${patient.basic.firstName} ${patient.basic.lastName} · ${patient.id}`}
     >
+      <RoleHero
+        eyebrow="Quick Entry"
+        title="Vitals in under a minute"
+        subtitle="Capture critical signs quickly for triage and escalation decisions."
+      />
+
       <Section title="Vital signs">
         <Field label="Temperature (°C)" value={temperature} onChangeText={setTemperature} keyboardType="decimal-pad" />
         <Field label="Blood Pressure (e.g. 120/80)" value={bp} onChangeText={setBp} autoCapitalize="none" />

@@ -6,6 +6,7 @@ import Field from "../../components/shared/Field";
 import KeyValue from "../../components/shared/KeyValue";
 import PillGroup from "../../components/shared/PillGroup";
 import PrimaryButton from "../../components/shared/PrimaryButton";
+import RoleHero from "../../components/shared/RoleHero";
 import Screen from "../../components/shared/Screen";
 import Section from "../../components/shared/Section";
 import { colors, radius, spacing, typography } from "../../theme";
@@ -71,6 +72,12 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <Screen subtitle="My Profile" title={fullName}>
+      <RoleHero
+        eyebrow="My Care"
+        title="Simple and reassuring"
+        subtitle="Keep your emergency contact and medical summary up to date."
+      />
+
       <View style={styles.headerRow}>
         <Badge label="Verified" variant="success" pulse />
         {profile?.bloodGroup ? <Badge label={`Blood · ${profile.bloodGroup}`} variant="info" /> : null}

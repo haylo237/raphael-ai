@@ -5,6 +5,7 @@ import Badge from "../../components/shared/Badge";
 import Field from "../../components/shared/Field";
 import KeyValue from "../../components/shared/KeyValue";
 import PrimaryButton from "../../components/shared/PrimaryButton";
+import RoleHero from "../../components/shared/RoleHero";
 import Screen from "../../components/shared/Screen";
 import Section from "../../components/shared/Section";
 import { colors, radius, spacing, typography } from "../../theme";
@@ -120,6 +121,12 @@ export default function ConsultationScreen({ route, navigation }) {
 
   return (
     <Screen>
+      <RoleHero
+        eyebrow="Consultation Workspace"
+        title="Clinical context first"
+        subtitle="Patient summary, vitals, pulse context, and emergency actions in one place."
+      />
+
       <View style={styles.headerRow}>
         <View style={{ flex: 1 }}>
           <Text style={typography.subtitle}>Consultation Workspace</Text>

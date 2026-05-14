@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from "react-native";
 import Badge from "../../components/shared/Badge";
 import KeyValue from "../../components/shared/KeyValue";
 import PrimaryButton from "../../components/shared/PrimaryButton";
+import RoleHero from "../../components/shared/RoleHero";
 import Screen from "../../components/shared/Screen";
 import Section from "../../components/shared/Section";
 import { colors, spacing, typography } from "../../theme";
@@ -80,6 +81,12 @@ export default function EmergencyStatusScreen({ route, navigation }) {
 
   return (
     <Screen>
+      <RoleHero
+        eyebrow="Emergency Status"
+        title="Alert received"
+        subtitle="Track hospital assignment, priority, and case progression in real time."
+      />
+
       <View style={styles.headerRow}>
         <View style={{ flex: 1 }}>
           <Text style={typography.subtitle}>Raphael · Pulse Decision</Text>

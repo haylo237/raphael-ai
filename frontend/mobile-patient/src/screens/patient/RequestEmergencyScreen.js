@@ -4,6 +4,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import Field from "../../components/shared/Field";
 import PillGroup from "../../components/shared/PillGroup";
 import PrimaryButton from "../../components/shared/PrimaryButton";
+import RoleHero from "../../components/shared/RoleHero";
 import Screen from "../../components/shared/Screen";
 import Section from "../../components/shared/Section";
 import { colors, spacing, typography } from "../../theme";
@@ -50,7 +51,12 @@ export default function RequestEmergencyScreen({ navigation }) {
   };
 
   return (
-    <Screen subtitle="Emergency Request" title="🚨  Get help now">
+    <Screen subtitle="Emergency Request" title="Get help now">
+      <RoleHero
+        eyebrow="Emergency Help"
+        title="We are with you"
+        subtitle="Describe what is happening. We will send your alert immediately."
+      />
       <Text style={[typography.muted, { marginBottom: spacing.md }]}>
         Stay calm. Tap submit and we will alert the nearest emergency team and
         Raphael Pulse will keep the line open even on weak networks.

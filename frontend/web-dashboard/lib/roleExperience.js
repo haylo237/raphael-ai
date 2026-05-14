@@ -25,7 +25,7 @@ const ROLE_NAV = {
       label: "Clinical Workspace",
       items: [
         { href: "/dashboard", label: "Doctor Dashboard" },
-        { href: "/consultations", label: "Assigned Cases" },
+        { href: "/doctor/cases", label: "Assigned Cases" },
         { href: "/emergency/feed", label: "Emergency Cases" },
         { href: "/patients", label: "Patient Profiles" },
       ],
@@ -36,6 +36,8 @@ const ROLE_NAV = {
       label: "Field Operations",
       items: [
         { href: "/dashboard", label: "Nurse Dashboard" },
+        { href: "/nurse/intake", label: "Register Patient" },
+        { href: "/nurse/vitals", label: "Quick Vitals" },
         { href: "/patients", label: "Patient Profiles" },
         { href: "/hospital/queue", label: "Admissions Queue" },
         { href: "/emergency/feed", label: "Emergency Alerts" },
@@ -47,6 +49,8 @@ const ROLE_NAV = {
       label: "Field Operations",
       items: [
         { href: "/dashboard", label: "Health Worker Dashboard" },
+        { href: "/nurse/intake", label: "Register Patient" },
+        { href: "/nurse/vitals", label: "Quick Vitals" },
         { href: "/patients", label: "Patient Profiles" },
         { href: "/hospital/queue", label: "Admissions Queue" },
         { href: "/emergency/feed", label: "Emergency Alerts" },

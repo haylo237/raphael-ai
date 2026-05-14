@@ -86,13 +86,15 @@ export default function DashboardPage() {
   const roleCards =
     role === "doctor"
       ? [
-          ["Assigned Cases", "/consultations", "Review urgency, vitals, and consultation notes quickly."],
+          ["Assigned Cases", "/doctor/cases", "Review urgency, vitals, and consultation notes quickly."],
           ["Emergency Cases", "/emergency/feed", "Accept, escalate, and resolve active emergencies."],
           ["Patient Profiles", "/patients", "Open summary, allergies, conditions, and Pulse context."],
         ]
       : ["nurse", "health_worker"].includes(role)
       ? [
-          ["Register & Manage Patients", "/patients", "Capture profiles, vitals, and emergency details fast."],
+          ["Register Patient", "/nurse/intake", "Step-form intake optimized for fast registration."],
+          ["Quick Vitals", "/nurse/vitals", "Record temperature, BP, pulse, and SpO2 in one flow."],
+          ["Patient Profiles", "/patients", "Open profile, history, and Pulse context."],
           ["Admissions Queue", "/hospital/queue", "Prioritize triage and doctor assignment workflows."],
           ["Emergency Alerts", "/emergency/feed", "Trigger and monitor emergency cases in real time."],
         ]
