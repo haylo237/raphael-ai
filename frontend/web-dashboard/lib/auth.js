@@ -6,7 +6,22 @@ import * as api from "./api";
 
 const AuthContext = createContext(null);
 
-const PUBLIC_ROUTES = new Set(["/login", "/"]);
+const PUBLIC_ROUTES = new Set(["/login"]);
+
+function withTimeout(promise, ms = 8000) {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => reject(new Error("Request timed out")), ms);
+    promise
+      .then((value) => {
+        clearTimeout(timeoutId);
+        resolve(value);
+      })
+      .catch((error) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -22,7 +37,7 @@ export function AuthProvider({ children }) {
       return;
     }
     try {
-      const { user } = await api.fetchMe();
+      const { user } = await withTimeout(api.fetchMe(), 8000);
       setUser(user);
     } catch {
       api.setAuthToken(null);

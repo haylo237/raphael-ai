@@ -2,6 +2,7 @@ const PULSE_URL =
   process.env.NEXT_PUBLIC_PULSE_URL || "http://localhost:8001";
 const GATEWAY_URL =
   process.env.NEXT_PUBLIC_GATEWAY_URL || "http://localhost:8000";
+const REQUEST_TIMEOUT_MS = Number(process.env.NEXT_PUBLIC_API_TIMEOUT_MS || 10000);
 
 const TOKEN_KEY = "raphael.auth.token";
 
@@ -22,10 +23,23 @@ async function call(url, method = "GET", body = null) {
   };
   const token = getAuthToken();
   if (token) headers.Authorization = `Bearer ${token}`;
-  const opts = { method, headers };
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const opts = { method, headers, signal: controller.signal };
   if (body !== null) opts.body = JSON.stringify(body);
-  const res = await fetch(url, opts);
-  const text = await res.text();
+  let res;
+  let text;
+  try {
+    res = await fetch(url, opts);
+    text = await res.text();
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error(`Request timed out after ${REQUEST_TIMEOUT_MS}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
   let data;
   try {
     data = JSON.parse(text);

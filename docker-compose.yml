@@ -1,15 +1,4 @@
-# Raphael AI — full stack with PostgreSQL persistence
-#
-# Backends:
-#   postgres                :5432
-#   pulse-engine            :8001
-#   backend-laravel         :8000   (Sanctum-protected REST API)
-#
-# Frontends:
-#   web-dashboard           :3001
-#   mobile-patient          :19000-19002
-#   mobile-doctor           :19010-19012
-#   mobile-health-worker    :19020-19022
+version: "3.9"
 
 services:
   postgres:
@@ -18,15 +7,29 @@ services:
       POSTGRES_DB: raphael
       POSTGRES_USER: raphael
       POSTGRES_PASSWORD: raphael
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U raphael -d raphael"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 5
+
+  backend-laravel:
+    image: php:8.3-cli
+    working_dir: /app
+    environment:
+      PULSE_ENGINE_URL: http://pulse-engine:8001
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend-laravel:/app
+    ports:
+      - "8000:8000"
+    command: ["sh", "-c", "apt-get update && apt-get install -y --no-install-recommends libpq-dev && docker-php-ext-install pdo_pgsql && php -S 0.0.0.0:8000 -t public"]
 
   pulse-engine:
     image: python:3.12-slim
@@ -37,39 +40,7 @@ services:
       - "8001:8001"
     command: ["sh", "-c", "pip install -r requirements.txt && uvicorn app.main:app --host 0.0.0.0 --port 8001"]
 
-  backend-laravel:
-    image: php:8.3-cli
-    working_dir: /app
-    environment:
-      PULSE_ENGINE_URL: http://pulse-engine:8001
-      APP_ENV: local
-      APP_DEBUG: "true"
-      DB_CONNECTION: pgsql
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_DATABASE: raphael
-      DB_USERNAME: raphael
-      DB_PASSWORD: raphael
-    depends_on:
-      postgres:
-        condition: service_healthy
-    volumes:
-      - ./backend-laravel:/app
-    ports:
-      - "8000:8000"
-    # Install pgsql extension + composer deps, run migrations & seeders, serve.
-    command: >
-      sh -c "
-        apt-get update -qq && apt-get install -y -qq libpq-dev unzip git curl > /dev/null &&
-        docker-php-ext-install pdo_pgsql pgsql > /dev/null &&
-        curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer > /dev/null &&
-        composer install --no-interaction --prefer-dist --no-progress &&
-        php artisan migrate --force &&
-        (php artisan db:seed --force || true) &&
-        php -S 0.0.0.0:8000 -t public
-      "
-
-  web-dashboard:
+  admin-dashboard:
     image: node:20-slim
     working_dir: /app
     environment:
@@ -81,50 +52,5 @@ services:
       - "3001:3001"
     command: ["sh", "-c", "npm install && npm run dev"]
 
-  mobile-patient:
-    image: node:20-slim
-    working_dir: /app
-    environment:
-      EXPO_PUBLIC_API_URL: http://localhost:8000
-      EXPO_PUBLIC_PULSE_URL: http://localhost:8001
-      REACT_NATIVE_PACKAGER_HOSTNAME: 0.0.0.0
-    volumes:
-      - ./frontend/mobile-patient:/app
-    ports:
-      - "19000:19000"
-      - "19001:19001"
-      - "19002:19002"
-    command: ["sh", "-c", "npm install && npx expo start --port 19000"]
-
-  mobile-doctor:
-    image: node:20-slim
-    working_dir: /app
-    environment:
-      EXPO_PUBLIC_API_URL: http://localhost:8000
-      EXPO_PUBLIC_PULSE_URL: http://localhost:8001
-      REACT_NATIVE_PACKAGER_HOSTNAME: 0.0.0.0
-    volumes:
-      - ./frontend/mobile-doctor:/app
-    ports:
-      - "19010:19010"
-      - "19011:19011"
-      - "19012:19012"
-    command: ["sh", "-c", "npm install && npx expo start --port 19010"]
-
-  mobile-health-worker:
-    image: node:20-slim
-    working_dir: /app
-    environment:
-      EXPO_PUBLIC_API_URL: http://localhost:8000
-      EXPO_PUBLIC_PULSE_URL: http://localhost:8001
-      REACT_NATIVE_PACKAGER_HOSTNAME: 0.0.0.0
-    volumes:
-      - ./frontend/mobile-health-worker:/app
-    ports:
-      - "19020:19020"
-      - "19021:19021"
-      - "19022:19022"
-    command: ["sh", "-c", "npm install && npx expo start --port 19020"]
-
 volumes:
-  postgres-data:
+  pgdata:

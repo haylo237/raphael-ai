@@ -22,8 +22,12 @@ export default function Shell({ children }) {
   }
 
   if (!user) {
-    // AuthProvider will redirect; render nothing meanwhile.
-    return null;
+    // AuthProvider will redirect to /login.
+    return (
+      <div className="min-h-screen flex items-center justify-center text-gray-500">
+        Redirecting to login…
+      </div>
+    );
   }
 
   return (
