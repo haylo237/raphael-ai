@@ -4,6 +4,7 @@ import secrets
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from app.camara import click_to_dial, congestion, connectivity_insights, device, device_identifier, device_reachability_status, device_reachability_status_subscriptions, geofencing, identity, location, qod, qos, qos_booking_assignment, qos_provisioning, region
@@ -14,7 +15,8 @@ from app.camara.config import (
     get_nac_client,
 )
 from app.camara.http_client import exchange_auth_code_for_token
-from app.services.decision_engine import choose_communication_mode, emergency_actions, nearest_hospital, should_request_qod
+from app.services.case_orchestrator import handle_case
+from app.services.decision_engine import choose_communication_mode, emergency_actions, nearest_hospital, should_request_qod  # noqa: F401  (kept for backwards compatibility / external imports)
 
 load_dotenv()
 
@@ -239,6 +241,13 @@ class ReachabilitySubscriptionCreateInput(BaseModel):
 
 
 app = FastAPI(title="Raphael Pulse", version="0.1.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/health")
@@ -1197,88 +1206,9 @@ def delete_device_reachability_subscription(subscription_id: str):
 
 @app.post("/decide")
 def decide(case: CaseInput) -> dict[str, object]:
-    """Build a decision plan using urgency, network, and CAMARA intelligence."""
-    phone_ref = case.patient_id  # used as device identifier in CAMARA calls
-    urgency_level = str(case.urgency).strip().upper()
-    network_level = str(case.network_quality).strip().upper()
+    """Build a decision plan using urgency, network, and CAMARA intelligence.
 
-    # --- CAMARA: Device reachability ---
-    reachability = device.get_reachability(phone_ref)
-    roaming_status = device.get_roaming_status(phone_ref)
-    # Keep API reachability as primary signal but allow case input to force
-    # unreachable during simulations and demos.
-    api_reachable = bool(reachability.get("reachable", case.device_reachable))
-    effective_reachable: bool = api_reachable and bool(case.device_reachable)
-
-    # --- CAMARA: Number ownership / SIM trust ---
-    number_verification = identity.verify_number(phone_ref)
-    sim_swap_status = identity.check_sim_swap(phone_ref)
-
-    # --- CAMARA: Congestion insights ---
-    congestion_data = congestion.get_insights(case.location, case.network_quality, phone_number=phone_ref)
-
-    communication_mode = choose_communication_mode(
-        urgency=urgency_level,
-        network_quality=network_level,
-        reachable=effective_reachable,
-    )
-
-    is_emergency = urgency_level == "EMERGENCY"
-    needs_qod = should_request_qod(urgency_level, network_level)
-
-    decision_actions: list[str] = []
-    if is_emergency:
-        decision_priority = "HIGH"
-        decision_actions = emergency_actions(
-            {
-                **case.model_dump(),
-                "device_reachable": effective_reachable,
-            }
-        )
-    else:
-        decision_priority = "NORMAL"
-        if not effective_reachable:
-            decision_actions.append("Send fallback notification")
-        decision_actions.append(f"Use {communication_mode} communication")
-
-    response: dict[str, object] = {
-        "patient_id": case.patient_id,
-        "is_emergency": is_emergency,
-        "communication_mode": communication_mode,
-        "decision": {
-            "mode": communication_mode,
-            "priority": decision_priority,
-            "actions": decision_actions,
-        },
-        "request_qod": needs_qod,
-        "input_summary": {
-            "urgency": urgency_level,
-            "network": network_level,
-            "reachable": effective_reachable,
-            "location": case.location,
-        },
-        "network_context": {
-            "quality": network_level,
-            "device_reachable": effective_reachable,
-            "reachability_detail": reachability,
-            "roaming": roaming_status,
-            "congestion": congestion_data,
-        },
-        "identity_context": {
-            "number_verification": number_verification,
-            "sim_swap": sim_swap_status,
-        },
-    }
-
-    # --- CAMARA: QoD priority session (if warranted) ---
-    if needs_qod:
-        response["qod_session"] = qod.request_priority(phone_ref, profile="QOS_E")
-
-    # --- CAMARA: Location + emergency actions ---
-    if is_emergency:
-        location_data = location.get_location(phone_ref, hint=case.location)
-        response["patient_location"] = location_data
-        response["assigned_hospital"] = nearest_hospital(case.location)
-        response["emergency_actions"] = decision_actions
-
-    return response
+    Thin HTTP wrapper: all orchestration lives in
+    `app.services.case_orchestrator.handle_case`.
+    """
+    return handle_case(case.model_dump())

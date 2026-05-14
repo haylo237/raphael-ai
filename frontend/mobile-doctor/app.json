@@ -1,0 +1,10 @@
+{
+  "expo": {
+    "name": "Raphael Doctor",
+    "slug": "raphael-ai-mobile-doctor",
+    "version": "0.1.0",
+    "orientation": "default",
+    "platforms": ["android", "ios", "web"],
+    "assetBundlePatterns": ["**/*"]
+  }
+}

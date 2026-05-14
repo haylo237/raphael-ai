@@ -104,60 +104,86 @@ The platform does not just consume APIs, it orchestrates them intelligently to d
 
 ## Architecture Overview
 
+Raphael AI is now a 5-app ecosystem coordinated by a network-aware decision engine.
+
 ```text
-Mobile App (React Native)
-        |
-        v
-Laravel API (Gateway)
-        |
-        v
-Raphael Pulse (Python Engine)
-        |
-        v
-CAMARA APIs + Nokia NaC
+┌──────────────────────┐  ┌──────────────────────┐  ┌──────────────────────┐
+│  Patient Mobile App  │  │ Health Worker Mobile │  │  Doctor Clinical App │
+│      (Expo / RN)     │  │  (Expo / RN, Nurse)  │  │   (Expo / RN tablet) │
+└─────────┬────────────┘  └──────────┬───────────┘  └──────────┬───────────┘
+          │                          │                         │
+          └──────────────┬───────────┴─────────────┬───────────┘
+                         ▼                         ▼
+                ┌─────────────────────────────────────────┐
+                │     Laravel API Gateway  (port 8000)    │
+                │  patients · emergencies · consultations │
+                │             queue · pulse proxy         │
+                └────────────────────┬────────────────────┘
+                                     ▼
+                  ┌────────────────────────────────────┐
+                  │   Raphael Pulse Engine (port 8001) │
+                  │   /decide → orchestrator           │
+                  │   timeline + explanation           │
+                  └─────────────────┬──────────────────┘
+                                    ▼
+                   ┌──────────────────────────────────┐
+                   │  CAMARA APIs · Nokia NaC SDK     │
+                   │  reachability · QoD · location   │
+                   │  identity · congestion · device  │
+                   └──────────────────────────────────┘
+
+                         ┌──────────────────────────────┐
+                         │     Admin Dashboard          │
+                         │ ─ Hospital Operations panel  │
+                         │ ─ Emergency Coordination     │
+                         │ ─ CAMARA / Pulse consoles    │
+                         │   (Next.js, port 3001)       │
+                         └──────────────────────────────┘
 ```
+
+## Platform Map
+
+All user-facing apps live under a single `frontend/` directory.
+
+| User | Platform | Folder |
+| --- | --- | --- |
+| Patient | Mobile App | `frontend/mobile-patient/` |
+| Nurse / Community Health Worker | Mobile App | `frontend/mobile-health-worker/` |
+| Doctor | Clinical App (mobile / tablet) | `frontend/mobile-doctor/` |
+| Receptionist · Hospital Admin | Web Dashboard | `frontend/web-dashboard/` → Hospital Operations |
+| Emergency Coordination Team | Web Dashboard | `frontend/web-dashboard/` → Emergency Coordination |
 
 ## Repository Structure
 
 ```text
 raphael-ai/
-|
-|-- mobile/                  # React Native app (Patient + future roles)
-|   |-- src/
-|   |   |-- screens/
-|   |   |   |-- patient/
-|   |   |   |-- doctor/      # future expansion
-|   |   |   |-- nurse/       # future expansion
-|   |   |   \-- shared/
-|   |   |-- components/
-|   |   |-- services/        # API calls
-|   |   \-- navigation/
-|   \-- README.md
-|
-|-- backend-laravel/         # API Gateway + lightweight dashboards
-|   |-- app/
-|   |-- routes/
-|   |-- config/
-|   \-- README.md
-|
-|-- pulse-engine/            # Raphael Pulse (Python core logic)
-|   |-- app/
-|   |   |-- main.py
-|   |   |-- services/
-|   |   \-- camara/          # API integrations
-|   \-- README.md
-|
-|-- ai-core/                 # Future AI system (not implemented yet)
-|   |-- models/
-|   |-- training/
-|   |-- inference/
-|   \-- README.md
-|
-|-- docs/                    # SRS, architecture, diagrams
-|
-|-- .env.example
-|-- docker-compose.yml       # optional (future deployment)
-\-- README.md
+│
+├─ frontend/                       # All user interfaces (see frontend/README.md)
+│  ├─ web-dashboard/               # Next.js 14 — admin / hospital / emergency consoles
+│  │  └─ app/
+│  │     ├─ hospital/              # overview · walk-in · queue · records
+│  │     ├─ emergency/             # feed · pulse monitoring
+│  │     ├─ triage, reachability, qod, … (CAMARA consoles)
+│  │     └─ dashboard/             # system health
+│  ├─ mobile-patient/              # Patient Expo RN app
+│  │  └─ src/screens/patient/      # Welcome → OTP → Profile → Request emergency → Status
+│  ├─ mobile-doctor/               # Doctor Expo RN app (tablet-friendly)
+│  │  └─ src/screens/doctor/       # Login → Dashboard → Case list → Consultation → Prescription
+│  └─ mobile-health-worker/        # Nurse / CHW Expo RN app
+│     └─ src/screens/nurse/        # Login → Home → Register → Profile → Vitals → Emergency → Status
+│
+├─ backend-laravel/                # API Gateway (Laravel)
+│  ├─ app/Http/Controllers/        # Case, Patient, Emergency, Consultation, Queue
+│  └─ routes/api.php
+│
+├─ pulse-engine/                   # Raphael Pulse (FastAPI)
+│  ├─ app/main.py
+│  ├─ app/services/                # case_orchestrator, decision_engine
+│  └─ app/camara/                  # reachability, identity, qod, location, congestion, device
+│
+├─ ai-core/                        # AI integration (future)
+├─ docs/                           # SRS, diagrams
+└─ docker-compose.yml              # All services + frontends, containerised
 ```
 
 ## Design Philosophy
@@ -227,13 +253,64 @@ cd backend-laravel
 PULSE_ENGINE_URL=http://localhost:8001 php -S 0.0.0.0:8000 -t public
 ```
 
-3. Start mobile app:
+3. Start the nurse / community health worker mobile app:
 
 ```bash
-cd mobile
+cd frontend/mobile-health-worker
 npm install
-EXPO_PUBLIC_API_URL=http://localhost:8000 npm start
+EXPO_PUBLIC_API_URL=http://localhost:8000 EXPO_PUBLIC_PULSE_URL=http://localhost:8001 npm start
 ```
+
+4. Start the patient mobile app (separate Expo instance):
+
+```bash
+cd frontend/mobile-patient
+npm install
+EXPO_PUBLIC_API_URL=http://localhost:8000 EXPO_PUBLIC_PULSE_URL=http://localhost:8001 npm start
+```
+
+5. Start the doctor clinical app:
+
+```bash
+cd frontend/mobile-doctor
+npm install
+EXPO_PUBLIC_API_URL=http://localhost:8000 EXPO_PUBLIC_PULSE_URL=http://localhost:8001 npm start
+```
+
+6. Start the web dashboard (hospital + emergency consoles):
+
+```bash
+cd frontend/web-dashboard
+npm install
+NEXT_PUBLIC_GATEWAY_URL=http://localhost:8000 NEXT_PUBLIC_PULSE_URL=http://localhost:8001 npm run dev
+```
+
+Then open:
+
+- `http://localhost:3001/dashboard` — System health
+- `http://localhost:3001/hospital/overview` — Hospital Operations
+- `http://localhost:3001/emergency/feed` — Live Emergency Feed (showcase)
+- `http://localhost:3001/emergency/pulse` — Pulse Monitoring
+
+### Gateway API (stub endpoints)
+
+The Laravel gateway exposes the following resources (in-memory via cache):
+
+| Method | Path | Used by |
+| --- | --- | --- |
+| GET/POST | `/api/patients` | Nurse, Hospital Ops, Records |
+| GET | `/api/patients/{id}` | Hospital Ops, Doctor |
+| POST | `/api/patients/{id}/vitals` | Nurse, Doctor |
+| GET/POST | `/api/emergencies` | Patient, Nurse, Emergency Dashboard |
+| GET | `/api/emergencies/{id}` | Doctor, Emergency Dashboard |
+| PATCH | `/api/emergencies/{id}` | Doctor, Emergency Dashboard |
+| GET/POST | `/api/consultations` | Doctor |
+| PATCH | `/api/consultations/{id}` | Doctor |
+| POST | `/api/consultations/{id}/prescriptions` | Doctor |
+| GET/POST | `/api/queue` | Hospital Ops |
+| PATCH | `/api/queue/{id}/assign` | Hospital Ops |
+| DELETE | `/api/queue/{id}` | Hospital Ops |
+| POST | `/cases` | Legacy CAMARA-preflight triage |
 
 ### Quick API Test
 
@@ -252,10 +329,10 @@ curl -X POST http://localhost:8000/cases \
 
 ### Next Build Targets
 
-1. Replace PHP router with full Laravel controllers and middleware.
-2. Add CAMARA integration adapters in `pulse-engine/app/camara`.
-3. Add persistence and case tracking in `backend-laravel`.
-4. Add role-based mobile experiences (doctor and nurse modules).
+1. Replace in-memory cache stores with real Laravel models + migrations.
+2. Real-time updates via WebSockets / Server-Sent Events for the Emergency dashboard.
+3. Auth + role-based access (currently demo sign-in).
+4. AI triage and clinical reasoning agents in `ai-core/`.
 
 ## License
 

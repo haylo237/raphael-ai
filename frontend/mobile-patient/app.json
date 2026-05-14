@@ -1,0 +1,10 @@
+{
+  "expo": {
+    "name": "Raphael Patient",
+    "slug": "raphael-ai-mobile-patient",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "platforms": ["android", "ios", "web"],
+    "assetBundlePatterns": ["**/*"]
+  }
+}
